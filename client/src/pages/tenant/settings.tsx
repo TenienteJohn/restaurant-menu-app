@@ -62,6 +62,33 @@ export default function TenantSettingsPage() {
     },
   });
 
+  const updateConfigMutation = useMutation({
+    mutationFn: async (data: { config: Tenant["config"] }) => {
+      const res = await apiRequest(
+        "PATCH", 
+        `/api/tenants/${user?.tenantId}/settings`,
+        data
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/tenants/${user?.tenantId}/settings`] 
+      });
+      toast({
+        title: "Configuración actualizada",
+        description: "Los cambios se han guardado correctamente",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al actualizar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const createCategoryMutation = useMutation({
     mutationFn: async (data: Category) => {
       console.log("Enviando datos de categoría:", data);
@@ -162,7 +189,14 @@ export default function TenantSettingsPage() {
                 type="submit" 
                 disabled={updateConfigMutation.isPending}
               >
-                Guardar Cambios
+                {updateConfigMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar Cambios"
+                )}
               </Button>
             </form>
           </CardContent>
