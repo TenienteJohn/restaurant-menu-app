@@ -7,6 +7,7 @@ import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
 import TenantsPage from "@/pages/admin/tenants";
 import TenantSettingsPage from "@/pages/tenant/settings";
+import MenuPage from "@/pages/tenant/menu";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ProtectedAdminRoute } from "./lib/protected-admin-route";
@@ -18,6 +19,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedAdminRoute path="/admin/tenants" component={TenantsPage} />
       <ProtectedTenantRoute path="/tenant/settings" component={TenantSettingsPage} />
+      <ProtectedTenantRoute path="/tenant/menu" component={MenuPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

@@ -93,6 +93,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(tenant);
   });
 
+  // Menu routes (tenant members only)
+  app.get("/api/tenants/:id/categories", async (req, res) => {
+    const tenantId = parseInt(req.params.id);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const categories = await storage.getCategoriesByTenantId(tenantId);
+    res.json(categories);
+  });
+
+  app.get("/api/tenants/:tenantId/categories/:categoryId/products", async (req, res) => {
+    const tenantId = parseInt(req.params.tenantId);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const categoryId = parseInt(req.params.categoryId);
+    const products = await storage.getProductsByCategoryId(categoryId, tenantId);
+    res.json(products);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

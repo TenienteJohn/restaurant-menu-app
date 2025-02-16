@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Building2, LogOut, Settings } from "lucide-react";
+import { Building2, LogOut, Settings, MenuSquare } from "lucide-react";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -21,12 +21,20 @@ export default function HomePage() {
               </Button>
             )}
             {user?.tenantId && (
-              <Button asChild variant="secondary">
-                <Link href="/tenant/settings">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Configuración del Comercio
-                </Link>
-              </Button>
+              <>
+                <Button asChild variant="secondary">
+                  <Link href="/tenant/settings">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Configuración del Comercio
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/tenant/menu">
+                    <MenuSquare className="w-4 h-4 mr-2" />
+                    Ver Menú
+                  </Link>
+                </Button>
+              </>
             )}
             <Button
               variant="outline"
@@ -52,8 +60,8 @@ export default function HomePage() {
             <h2 className="text-xl font-semibold">Panel de Comercio</h2>
             <p className="text-muted-foreground">
               Bienvenido a tu panel de comercio. Aquí podrás gestionar tu negocio y acceder
-              a todas las funcionalidades disponibles. Usa el botón de "Configuración del Comercio"
-              para personalizar tu espacio.
+              a todas las funcionalidades disponibles. Usa el botón "Ver Menú" para acceder
+              al menú digital de tu comercio.
             </p>
           </div>
         ) : (

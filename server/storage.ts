@@ -1,4 +1,4 @@
-import { users, tenants, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig } from "@shared/schema";
+import { users, tenants, categories, products, variants, ingredients, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig, type Category, type Product } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -15,21 +15,31 @@ export interface IStorage {
   getAllTenants(): Promise<Tenant[]>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenantConfig(id: number, config: TenantConfig): Promise<Tenant>;
+  getCategoriesByTenantId(tenantId: number): Promise<Category[]>;
+  getProductsByCategoryId(categoryId: number, tenantId: number): Promise<Product[]>;
   sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private tenants: Map<number, Tenant>;
+  private categories: Map<number, Category>;
+  private products: Map<number, Product>;
   currentUserId: number;
   currentTenantId: number;
+  currentCategoryId: number;
+  currentProductId: number;
   sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
     this.tenants = new Map();
+    this.categories = new Map();
+    this.products = new Map();
     this.currentUserId = 1;
     this.currentTenantId = 1;
+    this.currentCategoryId = 1;
+    this.currentProductId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -99,13 +109,22 @@ export class MemStorage implements IStorage {
 
     const updatedTenant = {
       ...tenant,
-      config: {
-        ...tenant.config,
-        ...config,
-      },
+      config,
     };
     this.tenants.set(id, updatedTenant);
     return updatedTenant;
+  }
+
+  async getCategoriesByTenantId(tenantId: number): Promise<Category[]> {
+    return Array.from(this.categories.values()).filter(
+      (category) => category.tenantId === tenantId
+    );
+  }
+
+  async getProductsByCategoryId(categoryId: number, tenantId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(
+      (product) => product.categoryId === categoryId && product.tenantId === tenantId
+    );
   }
 }
 
