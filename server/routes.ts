@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTenantSchema, updateTenantConfigSchema } from "@shared/schema";
+import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema } from "@shared/schema";
 
 function isSuperAdmin(req: Request) {
   return req.user?.isSuperAdmin === true;
@@ -37,6 +37,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const tenants = await storage.getAllTenants();
     res.json(tenants);
+  });
+
+  // User management (super admin only)
+  app.post("/api/tenants/:id/users", async (req, res) => {
+    if (!isSuperAdmin(req)) {
+      return res.status(403).send("Superadmin required");
+    }
+
+    const tenantId = parseInt(req.params.id);
+    const parsed = insertUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json(parsed.error);
+    }
+
+    const user = await storage.createUser({
+      ...parsed.data,
+      tenantId,
+      isSuperAdmin: false,
+    });
+
+    res.status(201).json(user);
   });
 
   // Tenant settings (tenant members only)

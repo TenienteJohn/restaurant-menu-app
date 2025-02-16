@@ -1,11 +1,18 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Plus } from "lucide-react";
-import { insertTenantSchema, type Tenant } from "@shared/schema";
+import { Plus, UserPlus } from "lucide-react";
+import { insertTenantSchema, insertUserSchema, type Tenant, type User } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +24,7 @@ export default function TenantsPage() {
     queryKey: ["/api/tenants"],
   });
 
-  const form = useForm({
+  const tenantForm = useForm({
     resolver: zodResolver(insertTenantSchema),
     defaultValues: {
       name: "",
@@ -27,13 +34,13 @@ export default function TenantsPage() {
   });
 
   const createTenantMutation = useMutation({
-    mutationFn: async (data: typeof form.getValues) => {
+    mutationFn: async (data: typeof tenantForm.getValues) => {
       const res = await apiRequest("POST", "/api/tenants", data);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tenants"] });
-      form.reset();
+      tenantForm.reset();
       toast({
         title: "Tenant creado",
         description: "El tenant se ha creado correctamente",
@@ -45,6 +52,41 @@ export default function TenantsPage() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async ({
+      tenantId,
+      data,
+    }: {
+      tenantId: number;
+      data: typeof userForm.getValues;
+    }) => {
+      const res = await apiRequest("POST", `/api/tenants/${tenantId}/users`, data);
+      return res.json();
+    },
+    onSuccess: (user: User) => {
+      toast({
+        title: "Usuario creado",
+        description: `Se ha creado el usuario ${user.username}`,
+      });
+      userForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al crear usuario",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const userForm = useForm({
+    resolver: zodResolver(insertUserSchema),
+    defaultValues: {
+      username: "",
+      password: "",
     },
   });
 
@@ -61,21 +103,23 @@ export default function TenantsPage() {
           </CardHeader>
           <CardContent>
             <form
-              onSubmit={form.handleSubmit((data) => createTenantMutation.mutate(data))}
+              onSubmit={tenantForm.handleSubmit((data) =>
+                createTenantMutation.mutate(data)
+              )}
               className="space-y-4"
             >
               <div>
                 <Label htmlFor="name">Nombre del Comercio</Label>
-                <Input id="name" {...form.register("name")} />
+                <Input id="name" {...tenantForm.register("name")} />
               </div>
-              
+
               <div>
                 <Label htmlFor="subdomain">Subdominio</Label>
-                <Input id="subdomain" {...form.register("subdomain")} />
+                <Input id="subdomain" {...tenantForm.register("subdomain")} />
               </div>
 
               <div className="flex items-center space-x-2">
-                <Switch id="active" {...form.register("active")} />
+                <Switch id="active" {...tenantForm.register("active")} />
                 <Label htmlFor="active">Activo</Label>
               </div>
 
@@ -109,11 +153,54 @@ export default function TenantsPage() {
                         {tenant.subdomain}.ejemplo.com
                       </p>
                     </div>
-                    <Switch
-                      checked={tenant.active}
-                      disabled
-                      aria-label="Estado del comercio"
-                    />
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={tenant.active}
+                        disabled
+                        aria-label="Estado del comercio"
+                      />
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="icon">
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Crear Usuario para {tenant.name}</DialogTitle>
+                          </DialogHeader>
+                          <form
+                            onSubmit={userForm.handleSubmit((data) =>
+                              createUserMutation.mutate({ tenantId: tenant.id, data })
+                            )}
+                            className="space-y-4"
+                          >
+                            <div>
+                              <Label htmlFor="username">Nombre de Usuario</Label>
+                              <Input
+                                id="username"
+                                {...userForm.register("username")}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="password">Contraseña</Label>
+                              <Input
+                                id="password"
+                                type="password"
+                                {...userForm.register("password")}
+                              />
+                            </div>
+                            <Button
+                              type="submit"
+                              disabled={createUserMutation.isPending}
+                            >
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Crear Usuario
+                            </Button>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                 ))}
               </div>
