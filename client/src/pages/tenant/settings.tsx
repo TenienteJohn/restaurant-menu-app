@@ -38,7 +38,7 @@ export default function TenantSettingsPage() {
     enabled: !!user?.tenantId,
   });
 
-  const form = useForm({
+  const configForm = useForm({
     resolver: zodResolver(updateTenantConfigSchema),
     defaultValues: {
       config: tenant?.config || {
@@ -75,7 +75,7 @@ export default function TenantSettingsPage() {
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async (data: typeof form.getValues) => {
+    mutationFn: async (data: { config: Tenant["config"] }) => {
       const res = await apiRequest(
         "PATCH", 
         `/api/tenants/${user?.tenantId}/settings`,
@@ -102,7 +102,7 @@ export default function TenantSettingsPage() {
   });
 
   const createCategoryMutation = useMutation({
-    mutationFn: async (data: typeof categoryForm.getValues) => {
+    mutationFn: async (data: Category) => {
       const res = await apiRequest(
         "POST",
         `/api/tenants/${user?.tenantId}/categories`,
@@ -130,7 +130,7 @@ export default function TenantSettingsPage() {
   });
 
   const createProductMutation = useMutation({
-    mutationFn: async ({ categoryId, data }: { categoryId: number; data: typeof productForm.getValues }) => {
+    mutationFn: async ({ categoryId, data }: { categoryId: number; data: Product }) => {
       const res = await apiRequest(
         "POST",
         `/api/tenants/${user?.tenantId}/categories/${categoryId}/products`,
@@ -171,7 +171,7 @@ export default function TenantSettingsPage() {
           </CardHeader>
           <CardContent>
             <form
-              onSubmit={form.handleSubmit((data) => updateConfigMutation.mutate(data))}
+              onSubmit={configForm.handleSubmit((data) => updateConfigMutation.mutate(data))}
               className="space-y-4"
             >
               <div>
@@ -179,7 +179,7 @@ export default function TenantSettingsPage() {
                 <Input
                   id="email"
                   type="email"
-                  {...form.register("config.contactEmail")}
+                  {...configForm.register("config.contactEmail")}
                 />
               </div>
 
@@ -187,7 +187,7 @@ export default function TenantSettingsPage() {
                 <Label htmlFor="address">Dirección</Label>
                 <Input
                   id="address"
-                  {...form.register("config.address")}
+                  {...configForm.register("config.address")}
                 />
               </div>
 
@@ -195,7 +195,7 @@ export default function TenantSettingsPage() {
                 <Label htmlFor="phone">Teléfono</Label>
                 <Input
                   id="phone"
-                  {...form.register("config.phone")}
+                  {...configForm.register("config.phone")}
                 />
               </div>
 
@@ -225,9 +225,9 @@ export default function TenantSettingsPage() {
                   <DialogTitle>Crear Nueva Categoría</DialogTitle>
                 </DialogHeader>
                 <form
-                  onSubmit={categoryForm.handleSubmit((data) =>
-                    createCategoryMutation.mutate(data)
-                  )}
+                  onSubmit={categoryForm.handleSubmit(data => {
+                    createCategoryMutation.mutate(data as Category);
+                  })}
                   className="space-y-4"
                 >
                   <div>
@@ -272,7 +272,10 @@ export default function TenantSettingsPage() {
                             </DialogHeader>
                             <form
                               onSubmit={productForm.handleSubmit((data) =>
-                                createProductMutation.mutate({ categoryId: category.id, data })
+                                createProductMutation.mutate({ 
+                                  categoryId: category.id, 
+                                  data: data as Product 
+                                })
                               )}
                               className="space-y-4"
                             >
