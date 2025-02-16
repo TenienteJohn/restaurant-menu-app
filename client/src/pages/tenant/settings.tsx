@@ -161,6 +161,18 @@ export default function TenantSettingsPage() {
     return <div>Cargando...</div>;
   }
 
+  const handleCreateCategory = (formData: any) => {
+    const categoryData = {
+      ...formData,
+      tenantId: user?.tenantId,
+      active: true,
+      order: 0,
+      description: formData.description || null,
+      image: formData.image || null,
+    };
+    createCategoryMutation.mutate(categoryData);
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="grid gap-8">
@@ -225,9 +237,7 @@ export default function TenantSettingsPage() {
                   <DialogTitle>Crear Nueva Categoría</DialogTitle>
                 </DialogHeader>
                 <form
-                  onSubmit={categoryForm.handleSubmit(data => {
-                    createCategoryMutation.mutate(data as Category);
-                  })}
+                  onSubmit={categoryForm.handleSubmit(handleCreateCategory)}
                   className="space-y-4"
                 >
                   <div>

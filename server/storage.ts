@@ -89,7 +89,7 @@ export class MemStorage implements IStorage {
     const tenant: Tenant = {
       ...insertTenant,
       id,
-      active: true,
+      active: insertTenant.active ?? true,
       config: {
         theme: "light",
         logo: null,
@@ -128,6 +128,10 @@ export class MemStorage implements IStorage {
     const category: Category = {
       ...insertCategory,
       id,
+      active: insertCategory.active ?? true,
+      order: insertCategory.order ?? 0,
+      description: insertCategory.description ?? null,
+      image: insertCategory.image ?? null,
     };
     this.categories.set(id, category);
     return category;
@@ -144,6 +148,10 @@ export class MemStorage implements IStorage {
     const product: Product = {
       ...insertProduct,
       id,
+      active: insertProduct.active ?? true,
+      order: insertProduct.order ?? 0,
+      description: insertProduct.description ?? null,
+      image: insertProduct.image ?? null,
     };
     this.products.set(id, product);
     return product;
