@@ -12,6 +12,7 @@ export interface IStorage {
   createUser(user: InsertUser & { isSuperAdmin?: boolean }): Promise<User>;
   getTenant(id: number): Promise<Tenant | undefined>;
   getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined>;
+  getAllTenants(): Promise<Tenant[]>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   sessionStore: session.Store;
 }
@@ -63,6 +64,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.tenants.values()).find(
       (tenant) => tenant.subdomain === subdomain,
     );
+  }
+
+  async getAllTenants(): Promise<Tenant[]> {
+    return Array.from(this.tenants.values());
   }
 
   async createTenant(insertTenant: InsertTenant): Promise<Tenant> {

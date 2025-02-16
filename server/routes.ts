@@ -31,7 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).send("Superadmin required");
     }
 
-    const tenants = await storage.getTenantBySubdomain(req.body.subdomain);
+    const tenants = await storage.getAllTenants();
     res.json(tenants);
   });
 
