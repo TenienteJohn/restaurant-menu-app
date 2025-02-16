@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Building2, LogOut } from "lucide-react";
+import { Building2, LogOut, Settings } from "lucide-react";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -17,6 +17,14 @@ export default function HomePage() {
                 <Link href="/admin/tenants">
                   <Building2 className="w-4 h-4 mr-2" />
                   Gestionar Comercios
+                </Link>
+              </Button>
+            )}
+            {user?.tenantId && (
+              <Button asChild variant="secondary">
+                <Link href="/tenant/settings">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Configuración del Comercio
                 </Link>
               </Button>
             )}
@@ -39,12 +47,21 @@ export default function HomePage() {
               Utiliza el botón "Gestionar Comercios" para crear y administrar los tenants.
             </p>
           </div>
-        ) : (
+        ) : user?.tenantId ? (
           <div className="grid gap-4">
             <h2 className="text-xl font-semibold">Panel de Comercio</h2>
             <p className="text-muted-foreground">
               Bienvenido a tu panel de comercio. Aquí podrás gestionar tu negocio y acceder
-              a todas las funcionalidades disponibles.
+              a todas las funcionalidades disponibles. Usa el botón de "Configuración del Comercio"
+              para personalizar tu espacio.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            <h2 className="text-xl font-semibold">Usuario sin Comercio Asignado</h2>
+            <p className="text-muted-foreground">
+              Actualmente no estás asignado a ningún comercio. Contacta con un administrador
+              para que te asigne a tu comercio correspondiente.
             </p>
           </div>
         )}

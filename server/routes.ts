@@ -2,10 +2,14 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTenantSchema } from "@shared/schema";
+import { insertTenantSchema, updateTenantConfigSchema } from "@shared/schema";
 
 function isSuperAdmin(req: Request) {
   return req.user?.isSuperAdmin === true;
+}
+
+function isTenantMember(req: Request, tenantId: number) {
+  return req.user?.tenantId === tenantId;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -33,6 +37,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const tenants = await storage.getAllTenants();
     res.json(tenants);
+  });
+
+  // Tenant settings (tenant members only)
+  app.get("/api/tenants/:id/settings", async (req, res) => {
+    const tenantId = parseInt(req.params.id);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const tenant = await storage.getTenant(tenantId);
+    if (!tenant) {
+      return res.status(404).send("Tenant not found");
+    }
+
+    res.json(tenant);
+  });
+
+  app.patch("/api/tenants/:id/settings", async (req, res) => {
+    const tenantId = parseInt(req.params.id);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const parsed = updateTenantConfigSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json(parsed.error);
+    }
+
+    const tenant = await storage.updateTenantConfig(tenantId, parsed.data.config);
+    res.json(tenant);
   });
 
   const httpServer = createServer(app);

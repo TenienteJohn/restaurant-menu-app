@@ -1,4 +1,4 @@
-import { users, tenants, type User, type InsertUser, type Tenant, type InsertTenant } from "@shared/schema";
+import { users, tenants, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -14,6 +14,7 @@ export interface IStorage {
   getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined>;
   getAllTenants(): Promise<Tenant[]>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenantConfig(id: number, config: TenantConfig): Promise<Tenant>;
   sessionStore: session.Store;
 }
 
@@ -50,7 +51,8 @@ export class MemStorage implements IStorage {
       ...insertUser, 
       id, 
       isSuperAdmin: insertUser.isSuperAdmin || false,
-      tenantId: null 
+      tenantId: null,
+      role: "user"
     };
     this.users.set(id, user);
     return user;
@@ -72,9 +74,38 @@ export class MemStorage implements IStorage {
 
   async createTenant(insertTenant: InsertTenant): Promise<Tenant> {
     const id = this.currentTenantId++;
-    const tenant: Tenant = { ...insertTenant, id, active: true };
+    const tenant: Tenant = {
+      ...insertTenant,
+      id,
+      active: true,
+      config: {
+        theme: "light",
+        logo: null,
+        contactEmail: null,
+        address: null,
+        phone: null,
+        ...insertTenant.config,
+      },
+    };
     this.tenants.set(id, tenant);
     return tenant;
+  }
+
+  async updateTenantConfig(id: number, config: TenantConfig): Promise<Tenant> {
+    const tenant = await this.getTenant(id);
+    if (!tenant) {
+      throw new Error("Tenant not found");
+    }
+
+    const updatedTenant = {
+      ...tenant,
+      config: {
+        ...tenant.config,
+        ...config,
+      },
+    };
+    this.tenants.set(id, updatedTenant);
+    return updatedTenant;
   }
 }
 
