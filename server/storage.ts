@@ -1,4 +1,4 @@
-import { users, tenants, categories, products, variants, ingredients, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig, type Category, type Product } from "@shared/schema";
+import { users, tenants, categories, products, variants, ingredients, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig, type Category, type InsertCategory, type Product, type InsertProduct } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -16,7 +16,9 @@ export interface IStorage {
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenantConfig(id: number, config: TenantConfig): Promise<Tenant>;
   getCategoriesByTenantId(tenantId: number): Promise<Category[]>;
+  createCategory(category: InsertCategory & { tenantId: number }): Promise<Category>;
   getProductsByCategoryId(categoryId: number, tenantId: number): Promise<Product[]>;
+  createProduct(product: InsertProduct & { categoryId: number, tenantId: number }): Promise<Product>;
   sessionStore: session.Store;
 }
 
@@ -121,10 +123,30 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async createCategory(insertCategory: InsertCategory & { tenantId: number }): Promise<Category> {
+    const id = this.currentCategoryId++;
+    const category: Category = {
+      ...insertCategory,
+      id,
+    };
+    this.categories.set(id, category);
+    return category;
+  }
+
   async getProductsByCategoryId(categoryId: number, tenantId: number): Promise<Product[]> {
     return Array.from(this.products.values()).filter(
       (product) => product.categoryId === categoryId && product.tenantId === tenantId
     );
+  }
+
+  async createProduct(insertProduct: InsertProduct & { categoryId: number, tenantId: number }): Promise<Product> {
+    const id = this.currentProductId++;
+    const product: Product = {
+      ...insertProduct,
+      id,
+    };
+    this.products.set(id, product);
+    return product;
   }
 }
 

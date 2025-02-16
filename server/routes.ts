@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema } from "@shared/schema";
+import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema } from "@shared/schema";
 import { hashPassword } from "./auth";
 
 function isSuperAdmin(req: Request) {
@@ -93,7 +93,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(tenant);
   });
 
-  // Menu routes (tenant members only)
+  // Categories management (tenant members only)
+  app.post("/api/tenants/:id/categories", async (req, res) => {
+    const tenantId = parseInt(req.params.id);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const parsed = insertCategorySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json(parsed.error);
+    }
+
+    const category = await storage.createCategory({
+      ...parsed.data,
+      tenantId,
+    });
+    res.status(201).json(category);
+  });
+
   app.get("/api/tenants/:id/categories", async (req, res) => {
     const tenantId = parseInt(req.params.id);
     if (!isTenantMember(req, tenantId)) {
@@ -102,6 +120,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const categories = await storage.getCategoriesByTenantId(tenantId);
     res.json(categories);
+  });
+
+  // Products management (tenant members only)
+  app.post("/api/tenants/:tenantId/categories/:categoryId/products", async (req, res) => {
+    const tenantId = parseInt(req.params.tenantId);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const categoryId = parseInt(req.params.categoryId);
+    const parsed = insertProductSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json(parsed.error);
+    }
+
+    const product = await storage.createProduct({
+      ...parsed.data,
+      categoryId,
+      tenantId,
+    });
+    res.status(201).json(product);
   });
 
   app.get("/api/tenants/:tenantId/categories/:categoryId/products", async (req, res) => {
