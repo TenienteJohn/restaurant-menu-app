@@ -22,7 +22,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 export default function TenantSettingsPage() {
   const { user } = useAuth();
@@ -62,47 +62,9 @@ export default function TenantSettingsPage() {
     },
   });
 
-  const productForm = useForm({
-    resolver: zodResolver(insertProductSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      image: null,
-      basePrice: "0",
-      order: 0,
-      active: true,
-    },
-  });
-
-  const updateConfigMutation = useMutation({
-    mutationFn: async (data: { config: Tenant["config"] }) => {
-      const res = await apiRequest(
-        "PATCH", 
-        `/api/tenants/${user?.tenantId}/settings`,
-        data
-      );
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/tenants/${user?.tenantId}/settings`] 
-      });
-      toast({
-        title: "Configuración actualizada",
-        description: "Los cambios se han guardado correctamente",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error al actualizar",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const createCategoryMutation = useMutation({
     mutationFn: async (data: Category) => {
+      console.log("Enviando datos de categoría:", data);
       const res = await apiRequest(
         "POST",
         `/api/tenants/${user?.tenantId}/categories`,
@@ -121,6 +83,7 @@ export default function TenantSettingsPage() {
       categoryForm.reset();
     },
     onError: (error: Error) => {
+      console.error("Error al crear categoría:", error);
       toast({
         title: "Error al crear categoría",
         description: error.message,
@@ -129,49 +92,33 @@ export default function TenantSettingsPage() {
     },
   });
 
-  const createProductMutation = useMutation({
-    mutationFn: async ({ categoryId, data }: { categoryId: number; data: Product }) => {
-      const res = await apiRequest(
-        "POST",
-        `/api/tenants/${user?.tenantId}/categories/${categoryId}/products`,
-        data
-      );
-      return res.json();
-    },
-    onSuccess: (_, { categoryId }) => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/tenants/${user?.tenantId}/categories/${categoryId}/products`],
-      });
+  const handleCreateCategory = (formData: any) => {
+    console.log("Form data:", formData);
+    if (!user?.tenantId) {
       toast({
-        title: "Producto creado",
-        description: "El producto se ha creado correctamente",
-      });
-      productForm.reset();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error al crear producto",
-        description: error.message,
+        title: "Error",
+        description: "No se encontró el ID del tenant",
         variant: "destructive",
       });
-    },
-  });
+      return;
+    }
 
-  if (isLoadingTenant || isLoadingCategories) {
-    return <div>Cargando...</div>;
-  }
-
-  const handleCreateCategory = (formData: any) => {
     const categoryData = {
       ...formData,
-      tenantId: user?.tenantId,
+      tenantId: user.tenantId,
       active: true,
       order: 0,
       description: formData.description || null,
       image: formData.image || null,
     };
+
+    console.log("Datos de categoría a enviar:", categoryData);
     createCategoryMutation.mutate(categoryData);
   };
+
+  if (isLoadingTenant || isLoadingCategories) {
+    return <div>Cargando...</div>;
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -242,17 +189,40 @@ export default function TenantSettingsPage() {
                 >
                   <div>
                     <Label htmlFor="name">Nombre</Label>
-                    <Input id="name" {...categoryForm.register("name")} />
+                    <Input 
+                      id="name" 
+                      {...categoryForm.register("name")} 
+                    />
+                    {categoryForm.formState.errors.name && (
+                      <p className="text-sm text-red-500">
+                        {categoryForm.formState.errors.name.message}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="description">Descripción</Label>
-                    <Input id="description" {...categoryForm.register("description")} />
+                    <Input 
+                      id="description" 
+                      {...categoryForm.register("description")} 
+                    />
+                    {categoryForm.formState.errors.description && (
+                      <p className="text-sm text-red-500">
+                        {categoryForm.formState.errors.description.message}
+                      </p>
+                    )}
                   </div>
                   <Button
                     type="submit"
                     disabled={createCategoryMutation.isPending}
                   >
-                    Crear Categoría
+                    {createCategoryMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creando...
+                      </>
+                    ) : (
+                      "Crear Categoría"
+                    )}
                   </Button>
                 </form>
               </DialogContent>
@@ -266,60 +236,10 @@ export default function TenantSettingsPage() {
                     {category.name}
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="pt-4 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-medium">Productos</h3>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button>
-                              <Plus className="w-4 h-4 mr-2" />
-                              Nuevo Producto
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Agregar Producto a {category.name}</DialogTitle>
-                            </DialogHeader>
-                            <form
-                              onSubmit={productForm.handleSubmit((data) =>
-                                createProductMutation.mutate({ 
-                                  categoryId: category.id, 
-                                  data: data as Product 
-                                })
-                              )}
-                              className="space-y-4"
-                            >
-                              <div>
-                                <Label htmlFor="productName">Nombre</Label>
-                                <Input id="productName" {...productForm.register("name")} />
-                              </div>
-                              <div>
-                                <Label htmlFor="productDescription">Descripción</Label>
-                                <Input
-                                  id="productDescription"
-                                  {...productForm.register("description")}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="basePrice">Precio Base</Label>
-                                <Input
-                                  id="basePrice"
-                                  type="number"
-                                  step="0.01"
-                                  {...productForm.register("basePrice")}
-                                />
-                              </div>
-                              <Button
-                                type="submit"
-                                disabled={createProductMutation.isPending}
-                              >
-                                Crear Producto
-                              </Button>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                      {/* Lista de productos aquí */}
+                    <div className="pt-4">
+                      <p className="text-muted-foreground">
+                        {category.description}
+                      </p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>

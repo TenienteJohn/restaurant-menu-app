@@ -120,6 +120,13 @@ export const productsRelations = relations(products, ({ many, one }) => ({
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
+  tenantId: true,
+}).extend({
+  name: z.string().min(1, "El nombre es requerido"),
+  description: z.string().nullable(),
+  image: z.string().nullable(),
+  order: z.number().default(0),
+  active: z.boolean().default(true),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({
