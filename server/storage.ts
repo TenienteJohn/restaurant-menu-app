@@ -9,7 +9,7 @@ const MemoryStore = createMemoryStore(session);
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser & { isSuperAdmin?: boolean }): Promise<User>;
   getTenant(id: number): Promise<Tenant | undefined>;
   getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
@@ -43,9 +43,14 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser & { isSuperAdmin?: boolean }): Promise<User> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id, isSuperAdmin: false, tenantId: null };
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      isSuperAdmin: insertUser.isSuperAdmin || false,
+      tenantId: null 
+    };
     this.users.set(id, user);
     return user;
   }
@@ -62,7 +67,7 @@ export class MemStorage implements IStorage {
 
   async createTenant(insertTenant: InsertTenant): Promise<Tenant> {
     const id = this.currentTenantId++;
-    const tenant: Tenant = { ...insertTenant, id };
+    const tenant: Tenant = { ...insertTenant, id, active: true };
     this.tenants.set(id, tenant);
     return tenant;
   }

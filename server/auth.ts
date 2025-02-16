@@ -61,12 +61,15 @@ export function setupAuth(app: Express) {
   app.post("/api/register", async (req, res, next) => {
     const existingUser = await storage.getUserByUsername(req.body.username);
     if (existingUser) {
-      return res.status(400).send("Username already exists");
+      return res.status(400).send("El nombre de usuario ya existe");
     }
+
+    const isSuperAdmin = (await storage.getUserByUsername("admin")) === undefined;
 
     const user = await storage.createUser({
       ...req.body,
       password: await hashPassword(req.body.password),
+      isSuperAdmin,
     });
 
     req.login(user, (err) => {
