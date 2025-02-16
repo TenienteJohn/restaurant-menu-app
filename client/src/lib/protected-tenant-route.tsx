@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
 
 export function ProtectedTenantRoute({
@@ -8,7 +9,17 @@ export function ProtectedTenantRoute({
   path: string;
   component: () => React.JSX.Element;
 }) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <Route path={path}>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-border" />
+        </div>
+      </Route>
+    );
+  }
 
   if (!user?.tenantId) {
     return (
