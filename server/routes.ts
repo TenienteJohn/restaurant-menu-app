@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema } from "@shared/schema";
+import { hashPassword } from "./auth";
 
 function isSuperAdmin(req: Request) {
   return req.user?.isSuperAdmin === true;
@@ -51,8 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json(parsed.error);
     }
 
+    const hashedPassword = await hashPassword(parsed.data.password);
     const user = await storage.createUser({
       ...parsed.data,
+      password: hashedPassword,
       tenantId,
       isSuperAdmin: false,
     });
