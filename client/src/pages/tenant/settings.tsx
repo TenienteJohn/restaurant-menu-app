@@ -178,7 +178,7 @@ export default function TenantSettingsPage() {
       try {
         const formattedData = {
           ...data,
-          basePrice: parseFloat(data.basePrice),
+          basePrice: parseFloat(data.basePrice).toString(), // Convertir a string para coincidir con el schema
           tenantId: user?.tenantId,
           categoryId,
         };
@@ -190,13 +190,14 @@ export default function TenantSettingsPage() {
         );
 
         if (!res.ok) {
-          throw new Error("Error al crear el producto");
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Error al crear el producto");
         }
 
         return res.json();
       } catch (error) {
         console.error("Error creating product:", error);
-        throw error;
+        throw error instanceof Error ? error : new Error("Error desconocido al crear el producto");
       }
     },
     onSuccess: (_, { categoryId }) => {
