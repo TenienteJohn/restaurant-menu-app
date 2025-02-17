@@ -17,13 +17,6 @@ export default function MenuPage() {
     enabled: !!user?.tenantId,
   });
 
-  const getProducts = (categoryId: number) => {
-    return useQuery<Product[]>({
-      queryKey: [`/api/tenants/${user?.tenantId}/categories/${categoryId}/products`],
-      enabled: !!user?.tenantId && !!categoryId,
-    });
-  };
-
   if (isLoadingCategories) {
     return <div>Cargando menú...</div>;
   }
@@ -45,7 +38,10 @@ export default function MenuPage() {
 
       <Accordion type="single" collapsible className="w-full">
         {categories.map((category) => {
-          const { data: products = [], isLoading: isLoadingProducts } = getProducts(category.id);
+          const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
+            queryKey: [`/api/tenants/${user?.tenantId}/categories/${category.id}/products`],
+            enabled: !!user?.tenantId,
+          });
 
           return (
             <AccordionItem key={category.id} value={`category-${category.id}`}>
