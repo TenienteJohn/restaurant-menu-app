@@ -101,8 +101,8 @@ export default function TenantSettingsPage() {
     productForm.reset({
       name: product.name,
       description: product.description || "",
-      basePrice: product.basePrice.toString(),
-      image: product.image,
+      basePrice: product.basePrice,
+      image: product.image || null,
       order: product.order,
       active: product.active,
     });
@@ -159,7 +159,9 @@ export default function TenantSettingsPage() {
       try {
         const formattedData = {
           ...data,
-          basePrice: parseFloat(data.basePrice).toString(),
+          basePrice: data.basePrice.toString(),
+          // Mantener la imagen existente si no se ha seleccionado una nueva
+          image: data.image || null,
         };
 
         const res = await apiRequest(
@@ -176,7 +178,7 @@ export default function TenantSettingsPage() {
         return res.json();
       } catch (error) {
         console.error("Error updating product:", error);
-        throw error instanceof Error ? error : new Error("Error desconocido al actualizar el producto");
+        throw error;
       }
     },
     onSuccess: (_, { productId }) => {

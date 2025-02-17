@@ -197,14 +197,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      let imageUrl = null;
-      if (parsed.data.image && parsed.data.image !== req.body.currentImage) {
+      let imageUrl = parsed.data.image;
+
+      // Solo procesar la imagen si es una nueva imagen en base64
+      if (parsed.data.image && parsed.data.image.startsWith('data:image')) {
         imageUrl = await uploadImage(parsed.data.image);
       }
 
       const product = await storage.updateProduct(productId, tenantId, {
         ...parsed.data,
-        image: imageUrl || parsed.data.image,
+        image: imageUrl,
       });
       res.json(product);
     } catch (error) {
