@@ -5,7 +5,6 @@ import { storage } from "./storage";
 import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema, insertProductVariantSchema, updateProductSchema } from "@shared/schema";
 import { hashPassword } from "./auth";
 import { uploadImage } from "./cloudinary";
-import cors from "cors";
 
 function isSuperAdmin(req: Request) {
   return req.user?.isSuperAdmin === true;
@@ -72,8 +71,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json(parsed.error);
     }
 
-    const tenant = await storage.createTenant(parsed.data);
-    res.status(201).json(tenant);
+    try {
+      const tenant = await storage.createTenant(parsed.data);
+      res.status(201).json(tenant);
+    } catch (error) {
+      console.error("Error creating tenant:", error);
+      res.status(500).json({ error: "Failed to create tenant" });
+    }
   });
 
   app.get("/api/tenants", async (req, res) => {
