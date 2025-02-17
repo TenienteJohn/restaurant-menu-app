@@ -129,8 +129,9 @@ app.use(async (req, res, next) => {
     serveStatic(app);
   }
 
-  const PORT = 5000;
+  // Usar el puerto proporcionado por Heroku o el puerto por defecto
+  const PORT = process.env.PORT || 5000;
   server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
+    log(`Server running on port ${PORT}`);
   });
 })();
