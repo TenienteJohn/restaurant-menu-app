@@ -522,109 +522,118 @@ export default function TenantSettingsPage() {
                         ) : !products?.length ? (
                           <div>No hay productos en esta categoría</div>
                         ) : (
-                          products.map((product) => (
+                          products.filter(product => product.categoryId === category.id).map((product) => (
                             <div key={product.id} className="relative group">
-                              <ProductCard product={product} />
-                              <div className="absolute top-4 right-4 space-x-2">
-                                <Dialog>
-                                  <DialogTrigger asChild onClick={() => handleEditProduct(product)}>
-                                    <Button variant="secondary" size="icon">
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                      <DialogTitle>Editar Producto</DialogTitle>
-                                    </DialogHeader>
-                                    <form
-                                      onSubmit={productForm.handleSubmit((data) =>
-                                        updateProductMutation.mutate({
-                                          productId: product.id,
-                                          data: {
-                                            ...data,
-                                            basePrice: parseFloat(data.basePrice).toString(),
-                                          }
-                                        })
-                                      )}
-                                      className="space-y-4"
-                                    >
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                          <Label htmlFor="productName">Nombre del Producto</Label>
+                              <ProductCard product={product} isEditable={true} />
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => {
+                                  handleEditProduct(product);
+                                  document.getElementById(`edit-product-${product.id}`)?.click();
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <button id={`edit-product-${product.id}`} className="hidden">
+                                    Edit
+                                  </button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle>Editar Producto</DialogTitle>
+                                  </DialogHeader>
+                                  <form
+                                    onSubmit={productForm.handleSubmit((data) =>
+                                      updateProductMutation.mutate({
+                                        productId: product.id,
+                                        data: {
+                                          ...data,
+                                          basePrice: parseFloat(data.basePrice).toString(),
+                                        }
+                                      })
+                                    )}
+                                    className="space-y-4"
+                                  >
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="productName">Nombre del Producto</Label>
+                                        <Input
+                                          id="productName"
+                                          {...productForm.register("name")}
+                                          placeholder="Ej: Hamburguesa Clásica"
+                                        />
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label htmlFor="basePrice">Precio Base</Label>
+                                        <div className="relative">
+                                          <span className="absolute left-3 top-2.5">$</span>
                                           <Input
-                                            id="productName"
-                                            {...productForm.register("name")}
-                                            placeholder="Ej: Hamburguesa Clásica"
+                                            id="basePrice"
+                                            type="number"
+                                            step="0.01"
+                                            className="pl-7"
+                                            {...productForm.register("basePrice")}
                                           />
                                         </div>
-
-                                        <div className="space-y-2">
-                                          <Label htmlFor="basePrice">Precio Base</Label>
-                                          <div className="relative">
-                                            <span className="absolute left-3 top-2.5">$</span>
-                                            <Input
-                                              id="basePrice"
-                                              type="number"
-                                              step="0.01"
-                                              className="pl-7"
-                                              {...productForm.register("basePrice")}
-                                            />
-                                          </div>
-                                        </div>
                                       </div>
+                                    </div>
 
-                                      <div className="space-y-2">
-                                        <Label htmlFor="productDescription">Descripción</Label>
-                                        <Textarea
-                                          id="productDescription"
-                                          {...productForm.register("description")}
-                                          placeholder="Breve descripción del producto..."
-                                        />
-                                      </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="productDescription">Descripción</Label>
+                                      <Textarea
+                                        id="productDescription"
+                                        {...productForm.register("description")}
+                                        placeholder="Breve descripción del producto..."
+                                      />
+                                    </div>
 
-                                      <div className="space-y-2">
-                                        <Label htmlFor="productImage">Imagen del Producto</Label>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={handleImageUpload}
-                                          className="hidden"
-                                          id="productImage"
-                                        />
-                                        <label htmlFor="productImage" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer">
-                                          {productForm.watch("image") ? (
-                                            <img src={productForm.watch("image")} alt="Vista previa" className="max-h-full max-w-full object-cover" />
-                                          ) : product.image ? (
-                                            <img src={product.image} alt="Imagen actual" className="max-h-full max-w-full object-cover" />
-                                          ) : (
-                                            <>
-                                              <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                                              <p className="text-sm text-muted-foreground">
-                                                Arrastra una imagen aquí o haz clic para seleccionar
-                                              </p>
-                                            </>
-                                          )}
-                                        </label>
-                                      </div>
-
-                                      <Button
-                                        type="submit"
-                                        className="w-full"
-                                        disabled={updateProductMutation.isPending}
-                                      >
-                                        {updateProductMutation.isPending ? (
-                                          <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Actualizando Producto...
-                                          </>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="productImage">Imagen del Producto</Label>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="hidden"
+                                        id="productImage"
+                                      />
+                                      <label htmlFor="productImage" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer">
+                                        {productForm.watch("image") ? (
+                                          <img src={productForm.watch("image")} alt="Vista previa" className="max-h-full max-w-full object-cover" />
+                                        ) : product.image ? (
+                                          <img src={product.image} alt="Imagen actual" className="max-h-full max-w-full object-cover" />
                                         ) : (
-                                          "Guardar Cambios"
+                                          <>
+                                            <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                            <p className="text-sm text-muted-foreground">
+                                              Arrastra una imagen aquí o haz clic para seleccionar
+                                            </p>
+                                          </>
                                         )}
-                                      </Button>
-                                    </form>
-                                  </DialogContent>
-                                </Dialog>
-                              </div>
+                                      </label>
+                                    </div>
+
+                                    <Button
+                                      type="submit"
+                                      className="w-full"
+                                      disabled={updateProductMutation.isPending}
+                                    >
+                                      {updateProductMutation.isPending ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                          Actualizando Producto...
+                                        </>
+                                      ) : (
+                                        "Guardar Cambios"
+                                      )}
+                                    </Button>
+                                  </form>
+                                </DialogContent>
+                              </Dialog>
                             </div>
                           ))
                         )}
