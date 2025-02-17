@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema, insertProductVariantSchema, updateProductSchema } from "@shared/schema";
 import { hashPassword } from "./auth";
 import { uploadImage } from "./cloudinary";
+import cors from "cors";
 
 function isSuperAdmin(req: Request) {
   return req.user?.isSuperAdmin === true;
@@ -15,6 +16,49 @@ function isTenantMember(req: Request, tenantId: number) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Rutas públicas (sin autenticación)
+  app.get("/api/public/tenant-by-subdomain/:subdomain", async (req, res) => {
+    try {
+      const subdomain = req.params.subdomain;
+      console.log("Buscando tenant con subdominio:", subdomain);
+
+      const tenant = await storage.getTenantBySubdomain(subdomain);
+      console.log("Resultado de búsqueda:", tenant || "No encontrado");
+
+      if (!tenant) {
+        return res.status(404).json({ error: "Comercio no encontrado" });
+      }
+
+      res.json(tenant);
+    } catch (error) {
+      console.error("Error al buscar tenant:", error);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/public/categories/:tenantId", async (req, res) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      const categories = await storage.getCategoriesByTenantId(tenantId);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error al obtener categorías:", error);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/public/products/:tenantId", async (req, res) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      const products = await storage.getAllProductsByTenantId(tenantId);
+      res.json(products);
+    } catch (error) {
+      console.error("Error al obtener productos:", error);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  });
+
+  // Configurar autenticación después de las rutas públicas
   setupAuth(app);
 
   // Tenant management (super admin only)
