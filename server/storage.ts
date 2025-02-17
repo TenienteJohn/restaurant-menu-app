@@ -84,7 +84,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined> {
+    console.log('Looking up tenant with subdomain:', subdomain);
     const [tenant] = await db.select().from(tenants).where(eq(tenants.subdomain, subdomain));
+    console.log('Tenant lookup result:', tenant);
     return tenant;
   }
 
