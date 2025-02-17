@@ -141,6 +141,15 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
+  tenantId: true,
+  categoryId: true,
+}).extend({
+  name: z.string().min(1, "El nombre es requerido"),
+  description: z.string().nullable(),
+  image: z.string().nullable(),
+  basePrice: z.string().transform((val) => parseFloat(val)),
+  order: z.number().default(0),
+  active: z.boolean().default(true),
 });
 
 export const insertVariantSchema = createInsertSchema(variants).omit({

@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Loader2, Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import React from 'react';
 
 export default function TenantSettingsPage() {
   const { user } = useAuth();
@@ -152,12 +153,30 @@ export default function TenantSettingsPage() {
     },
   });
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        productForm.setValue("image", reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const createProductMutation = useMutation({
-    mutationFn: async ({ categoryId, data }: { categoryId: number; data: Product }) => {
+    mutationFn: async ({ categoryId, data }: { categoryId: number; data: any }) => {
+      const formattedData = {
+        ...data,
+        basePrice: parseFloat(data.basePrice),
+        tenantId: user?.tenantId,
+        categoryId,
+      };
+
       const res = await apiRequest(
         "POST",
         `/api/tenants/${user?.tenantId}/categories/${categoryId}/products`,
-        data
+        formattedData
       );
       return res.json();
     },
@@ -373,13 +392,26 @@ export default function TenantSettingsPage() {
                               </div>
 
                               <div className="space-y-2">
-                                <Label>Imagen del Producto</Label>
-                                <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                                  <p className="text-sm text-muted-foreground">
-                                    Arrastra una imagen aquí o haz clic para seleccionar
-                                  </p>
-                                </div>
+                                <Label htmlFor="productImage">Imagen del Producto</Label>
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  onChange={handleImageUpload} 
+                                  className="hidden" 
+                                  id="productImage"
+                                />
+                                <label htmlFor="productImage" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer">
+                                  {productForm.watch("image") ? (
+                                    <img src={productForm.watch("image")} alt="Vista previa" className="max-h-full max-w-full object-cover" />
+                                  ) : (
+                                    <>
+                                      <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                      <p className="text-sm text-muted-foreground">
+                                        Arrastra una imagen aquí o haz clic para seleccionar
+                                      </p>
+                                    </>
+                                  )}
+                                </label>
                               </div>
 
                               <Button
