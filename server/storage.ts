@@ -6,6 +6,16 @@ import createMemoryStore from "memorystore";
 
 const MemoryStore = createMemoryStore(session);
 
+interface UpdateProduct {
+    name?: string;
+    description?: string;
+    image?: string | null;
+    active?: boolean;
+    order?: number;
+    categoryId?: number;
+}
+
+
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -23,6 +33,7 @@ export interface IStorage {
   getProductVariants(productId: number): Promise<ProductVariant[]>;
   createProductVariant(variant: InsertProductVariant & { productId: number, tenantId: number }): Promise<ProductVariant>;
   getAllProductsByTenantId(tenantId: number): Promise<Product[]>;
+  updateProduct(productId: number, tenantId: number, product: UpdateProduct): Promise<Product>;
 }
 
 export class MemStorage implements IStorage {
@@ -186,6 +197,24 @@ export class MemStorage implements IStorage {
     return Array.from(this.products.values()).filter(
       (product) => product.tenantId === tenantId
     );
+  }
+
+  async updateProduct(productId: number, tenantId: number, updateProduct: UpdateProduct): Promise<Product> {
+    const existingProduct = Array.from(this.products.values()).find(
+      (p) => p.id === productId && p.tenantId === tenantId
+    );
+
+    if (!existingProduct) {
+      throw new Error("Product not found");
+    }
+
+    const updatedProduct: Product = {
+      ...existingProduct,
+      ...updateProduct,
+    };
+
+    this.products.set(productId, updatedProduct);
+    return updatedProduct;
   }
 }
 

@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { updateTenantConfigSchema, insertCategorySchema, insertProductSchema, type Tenant, type Category, type Product } from "@shared/schema";
+import { updateTenantConfigSchema, insertCategorySchema, insertProductSchema, updateProductSchema, type Tenant, type Category, type Product } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +22,22 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Loader2, Upload } from "lucide-react";
+import { Plus, Loader2, Upload, Pencil } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import React from 'react';
+import ProductCard from "@/components/menu/product-card"; // Import ProductCard
+
+
+const handleEditProduct = (product: Product) => {
+  productForm.reset({
+    name: product.name,
+    description: product.description || "",
+    basePrice: product.basePrice.toString(),
+    image: product.image,
+    order: product.order,
+    active: product.active,
+  });
+};
 
 export default function TenantSettingsPage() {
   const { user } = useAuth();
@@ -219,7 +232,56 @@ export default function TenantSettingsPage() {
     },
   });
 
-  if (isLoadingTenant || isLoadingCategories) {
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ productId, data }: { productId: number; data: typeof productForm.getValues }) => {
+      try {
+        const formattedData = {
+          ...data,
+          basePrice: parseFloat(data.basePrice).toString(),
+        };
+
+        const res = await apiRequest(
+          "PATCH",
+          `/api/tenants/${user?.tenantId}/products/${productId}`,
+          formattedData
+        );
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Error al actualizar el producto");
+        }
+
+        return res.json();
+      } catch (error) {
+        console.error("Error updating product:", error);
+        throw error instanceof Error ? error : new Error("Error desconocido al actualizar el producto");
+      }
+    },
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/tenants/${user?.tenantId}/products`],
+      });
+      toast({
+        title: "Producto actualizado",
+        description: "El producto se ha actualizado correctamente",
+      });
+      productForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al actualizar producto",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: [`/api/tenants/${user?.tenantId}/products`],
+    enabled: !!user?.tenantId,
+  });
+
+  if (isLoadingTenant || isLoadingCategories || isLoadingProducts) {
     return <div>Cargando...</div>;
   }
 
@@ -413,11 +475,11 @@ export default function TenantSettingsPage() {
 
                               <div className="space-y-2">
                                 <Label htmlFor="productImage">Imagen del Producto</Label>
-                                <input 
-                                  type="file" 
-                                  accept="image/*" 
-                                  onChange={handleImageUpload} 
-                                  className="hidden" 
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleImageUpload}
+                                  className="hidden"
                                   id="productImage"
                                 />
                                 <label htmlFor="productImage" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer">
@@ -455,7 +517,117 @@ export default function TenantSettingsPage() {
 
                       {/* Lista de productos aquí */}
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {/* ProductCard components will go here */}
+                        {isLoadingProducts ? (
+                          <div>Cargando productos...</div>
+                        ) : !products?.length ? (
+                          <div>No hay productos en esta categoría</div>
+                        ) : (
+                          products.map((product) => (
+                            <div key={product.id} className="relative group">
+                              <ProductCard product={product} />
+                              <div className="absolute top-4 right-4 space-x-2">
+                                <Dialog>
+                                  <DialogTrigger asChild onClick={() => handleEditProduct(product)}>
+                                    <Button variant="secondary" size="icon">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                      <DialogTitle>Editar Producto</DialogTitle>
+                                    </DialogHeader>
+                                    <form
+                                      onSubmit={productForm.handleSubmit((data) =>
+                                        updateProductMutation.mutate({
+                                          productId: product.id,
+                                          data: {
+                                            ...data,
+                                            basePrice: parseFloat(data.basePrice).toString(),
+                                          }
+                                        })
+                                      )}
+                                      className="space-y-4"
+                                    >
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                          <Label htmlFor="productName">Nombre del Producto</Label>
+                                          <Input
+                                            id="productName"
+                                            {...productForm.register("name")}
+                                            placeholder="Ej: Hamburguesa Clásica"
+                                          />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                          <Label htmlFor="basePrice">Precio Base</Label>
+                                          <div className="relative">
+                                            <span className="absolute left-3 top-2.5">$</span>
+                                            <Input
+                                              id="basePrice"
+                                              type="number"
+                                              step="0.01"
+                                              className="pl-7"
+                                              {...productForm.register("basePrice")}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label htmlFor="productDescription">Descripción</Label>
+                                        <Textarea
+                                          id="productDescription"
+                                          {...productForm.register("description")}
+                                          placeholder="Breve descripción del producto..."
+                                        />
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label htmlFor="productImage">Imagen del Producto</Label>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleImageUpload}
+                                          className="hidden"
+                                          id="productImage"
+                                        />
+                                        <label htmlFor="productImage" className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer">
+                                          {productForm.watch("image") ? (
+                                            <img src={productForm.watch("image")} alt="Vista previa" className="max-h-full max-w-full object-cover" />
+                                          ) : product.image ? (
+                                            <img src={product.image} alt="Imagen actual" className="max-h-full max-w-full object-cover" />
+                                          ) : (
+                                            <>
+                                              <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                              <p className="text-sm text-muted-foreground">
+                                                Arrastra una imagen aquí o haz clic para seleccionar
+                                              </p>
+                                            </>
+                                          )}
+                                        </label>
+                                      </div>
+
+                                      <Button
+                                        type="submit"
+                                        className="w-full"
+                                        disabled={updateProductMutation.isPending}
+                                      >
+                                        {updateProductMutation.isPending ? (
+                                          <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Actualizando Producto...
+                                          </>
+                                        ) : (
+                                          "Guardar Cambios"
+                                        )}
+                                      </Button>
+                                    </form>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </AccordionContent>

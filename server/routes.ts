@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema, insertProductVariantSchema } from "@shared/schema";
+import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema, insertProductVariantSchema, updateProductSchema } from "@shared/schema";
 import { hashPassword } from "./auth";
 import { uploadImage } from "./cloudinary";
 
@@ -182,6 +182,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Agregar el endpoint de actualización después del endpoint de creación de productos
+  app.patch("/api/tenants/:tenantId/products/:productId", async (req, res) => {
+    const tenantId = parseInt(req.params.tenantId);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const productId = parseInt(req.params.productId);
+    const parsed = updateProductSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json(parsed.error);
+    }
+
+    try {
+      let imageUrl = null;
+      if (parsed.data.image && parsed.data.image !== req.body.currentImage) {
+        imageUrl = await uploadImage(parsed.data.image);
+      }
+
+      const product = await storage.updateProduct(productId, tenantId, {
+        ...parsed.data,
+        image: imageUrl || parsed.data.image,
+      });
+      res.json(product);
+    } catch (error) {
+      console.error("Error updating product:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
 
   // Product variants management (tenant members only)
   app.post("/api/tenants/:tenantId/products/:productId/variants", async (req, res) => {

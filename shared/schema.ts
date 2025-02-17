@@ -152,6 +152,19 @@ export const insertProductSchema = createInsertSchema(products).omit({
   active: z.boolean().default(true),
 });
 
+export const updateProductSchema = createInsertSchema(products).omit({
+  id: true,
+  tenantId: true,
+  categoryId: true,
+}).extend({
+  name: z.string().min(1, "El nombre es requerido"),
+  description: z.string().nullable(),
+  image: z.string().nullable(),
+  basePrice: z.string().transform((val) => parseFloat(val)),
+  order: z.number().default(0),
+  active: z.boolean().default(true),
+});
+
 export const insertVariantSchema = createInsertSchema(variants).omit({
   id: true,
 });
@@ -186,3 +199,4 @@ export type InsertVariant = z.infer<typeof insertVariantSchema>;
 export type InsertIngredient = z.infer<typeof insertIngredientSchema>;
 export type ProductVariant = typeof productVariants.$inferSelect;
 export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+export type UpdateProduct = z.infer<typeof updateProductSchema>;
