@@ -25,19 +25,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Loader2, Upload, Pencil } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import React from 'react';
-import ProductCard from "@/components/menu/product-card"; // Import ProductCard
-
-
-const handleEditProduct = (product: Product) => {
-  productForm.reset({
-    name: product.name,
-    description: product.description || "",
-    basePrice: product.basePrice.toString(),
-    image: product.image,
-    order: product.order,
-    active: product.active,
-  });
-};
+import ProductCard from "@/components/menu/product-card";
 
 export default function TenantSettingsPage() {
   const { user } = useAuth();
@@ -77,83 +65,6 @@ export default function TenantSettingsPage() {
     },
   });
 
-  const updateConfigMutation = useMutation({
-    mutationFn: async (data: { config: Tenant["config"] }) => {
-      const res = await apiRequest(
-        "PATCH",
-        `/api/tenants/${user?.tenantId}/settings`,
-        data
-      );
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/tenants/${user?.tenantId}/settings`]
-      });
-      toast({
-        title: "Configuración actualizada",
-        description: "Los cambios se han guardado correctamente",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error al actualizar",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const createCategoryMutation = useMutation({
-    mutationFn: async (data: Category) => {
-      const res = await apiRequest(
-        "POST",
-        `/api/tenants/${user?.tenantId}/categories`,
-        data
-      );
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/tenants/${user?.tenantId}/categories`],
-      });
-      toast({
-        title: "Categoría creada",
-        description: "La categoría se ha creado correctamente",
-      });
-      categoryForm.reset();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error al crear categoría",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreateCategory = (formData: any) => {
-    if (!user?.tenantId) {
-      toast({
-        title: "Error",
-        description: "No se encontró el ID del tenant",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const categoryData = {
-      ...formData,
-      tenantId: user.tenantId,
-      active: true,
-      order: 0,
-      description: formData.description || null,
-      image: formData.image || null,
-    };
-
-    createCategoryMutation.mutate(categoryData);
-  };
-
   const productForm = useForm({
     resolver: zodResolver(insertProductSchema),
     defaultValues: {
@@ -184,6 +95,17 @@ export default function TenantSettingsPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleEditProduct = (product: Product) => {
+    productForm.reset({
+      name: product.name,
+      description: product.description || "",
+      basePrice: product.basePrice.toString(),
+      image: product.image,
+      order: product.order,
+      active: product.active,
+    });
   };
 
   const createProductMutation = useMutation({
@@ -275,6 +197,83 @@ export default function TenantSettingsPage() {
       });
     },
   });
+
+  const updateConfigMutation = useMutation({
+    mutationFn: async (data: { config: Tenant["config"] }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/tenants/${user?.tenantId}/settings`,
+        data
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/tenants/${user?.tenantId}/settings`]
+      });
+      toast({
+        title: "Configuración actualizada",
+        description: "Los cambios se han guardado correctamente",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al actualizar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: Category) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/tenants/${user?.tenantId}/categories`,
+        data
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/tenants/${user?.tenantId}/categories`],
+      });
+      toast({
+        title: "Categoría creada",
+        description: "La categoría se ha creado correctamente",
+      });
+      categoryForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al crear categoría",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateCategory = (formData: any) => {
+    if (!user?.tenantId) {
+      toast({
+        title: "Error",
+        description: "No se encontró el ID del tenant",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const categoryData = {
+      ...formData,
+      tenantId: user.tenantId,
+      active: true,
+      order: 0,
+      description: formData.description || null,
+      image: formData.image || null,
+    };
+
+    createCategoryMutation.mutate(categoryData);
+  };
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery({
     queryKey: [`/api/tenants/${user?.tenantId}/products`],
