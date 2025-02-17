@@ -156,6 +156,15 @@ export default function TenantSettingsPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "Error",
+          description: "La imagen no puede ser mayor a 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         productForm.setValue("image", reader.result as string);
@@ -166,19 +175,29 @@ export default function TenantSettingsPage() {
 
   const createProductMutation = useMutation({
     mutationFn: async ({ categoryId, data }: { categoryId: number; data: any }) => {
-      const formattedData = {
-        ...data,
-        basePrice: parseFloat(data.basePrice),
-        tenantId: user?.tenantId,
-        categoryId,
-      };
+      try {
+        const formattedData = {
+          ...data,
+          basePrice: parseFloat(data.basePrice),
+          tenantId: user?.tenantId,
+          categoryId,
+        };
 
-      const res = await apiRequest(
-        "POST",
-        `/api/tenants/${user?.tenantId}/categories/${categoryId}/products`,
-        formattedData
-      );
-      return res.json();
+        const res = await apiRequest(
+          "POST",
+          `/api/tenants/${user?.tenantId}/categories/${categoryId}/products`,
+          formattedData
+        );
+
+        if (!res.ok) {
+          throw new Error("Error al crear el producto");
+        }
+
+        return res.json();
+      } catch (error) {
+        console.error("Error creating product:", error);
+        throw error;
+      }
     },
     onSuccess: (_, { categoryId }) => {
       queryClient.invalidateQueries({

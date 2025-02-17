@@ -2,8 +2,9 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema } from "@shared/schema";
+import { insertTenantSchema, updateTenantConfigSchema, insertUserSchema, insertCategorySchema, insertProductSchema, insertProductVariantSchema } from "@shared/schema";
 import { hashPassword } from "./auth";
+import { uploadImage } from "./cloudinary";
 
 function isSuperAdmin(req: Request) {
   return req.user?.isSuperAdmin === true;
@@ -135,12 +136,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json(parsed.error);
     }
 
-    const product = await storage.createProduct({
-      ...parsed.data,
-      categoryId,
-      tenantId,
-    });
-    res.status(201).json(product);
+    try {
+      let imageUrl = null;
+      if (parsed.data.image) {
+        imageUrl = await uploadImage(parsed.data.image);
+      }
+
+      const product = await storage.createProduct({
+        ...parsed.data,
+        image: imageUrl,
+        categoryId,
+        tenantId,
+      });
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res.status(500).json({ error: "Failed to create product" });
+    }
   });
 
   app.get("/api/tenants/:tenantId/categories/:categoryId/products", async (req, res) => {
