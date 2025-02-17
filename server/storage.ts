@@ -1,20 +1,20 @@
 import { users, tenants, categories, products, productVariants, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig, type Category, type InsertCategory, type Product, type InsertProduct, type ProductVariant, type InsertProductVariant } from "@shared/schema";
-import { db } from "./db";
-import { eq, and } from "drizzle-orm";
 import session from "express-session";
-import connectPg from "connect-pg-simple";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import createMemoryStore from "memorystore";
 
-const PostgresSessionStore = connectPg(session);
+const MemoryStore = createMemoryStore(session);
 
 interface UpdateProduct {
-  name?: string;
-  description?: string | null;
-  image?: string | null;
-  active?: boolean;
-  order?: number;
-  categoryId?: number;
-  basePrice?: string;
+    name?: string;
+    description?: string;
+    image?: string | null;
+    active?: boolean;
+    order?: number;
+    categoryId?: number;
 }
+
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -36,173 +36,186 @@ export interface IStorage {
   updateProduct(productId: number, tenantId: number, product: UpdateProduct): Promise<Product>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class MemStorage implements IStorage {
+  private users: Map<number, User>;
+  private tenants: Map<number, Tenant>;
+  private categories: Map<number, Category>;
+  private products: Map<number, Product>;
+  private variants: Map<number, ProductVariant>;
+  currentUserId: number;
+  currentTenantId: number;
+  currentCategoryId: number;
+  currentProductId: number;
+  currentVariantId: number;
   sessionStore: session.Store;
 
   constructor() {
-    this.sessionStore = new PostgresSessionStore({
-      conObject: {
-        connectionString: process.env.DATABASE_URL,
-      },
-      createTableIfMissing: true,
+    this.users = new Map();
+    this.tenants = new Map();
+    this.categories = new Map();
+    this.products = new Map();
+    this.variants = new Map();
+    this.currentUserId = 1;
+    this.currentTenantId = 1;
+    this.currentCategoryId = 1;
+    this.currentProductId = 1;
+    this.currentVariantId = 1;
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return this.users.get(id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username,
+    );
+  }
+
+  async createUser(insertUser: InsertUser & { isSuperAdmin?: boolean, tenantId?: number | null }): Promise<User> {
+    const id = this.currentUserId++;
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      isSuperAdmin: insertUser.isSuperAdmin || false,
+      tenantId: insertUser.tenantId || null,
+      role: "user"
+    };
+    this.users.set(id, user);
     return user;
   }
 
-  async createUser(user: InsertUser & { isSuperAdmin?: boolean, tenantId?: number | null }): Promise<User> {
-    const [newUser] = await db.insert(users).values({
-      username: user.username,
-      password: user.password,
-      isSuperAdmin: user.isSuperAdmin || false,
-      tenantId: user.tenantId || null,
-      role: "user",
-    }).returning();
-    return newUser;
-  }
-
   async getTenant(id: number): Promise<Tenant | undefined> {
-    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
-    return tenant;
+    return this.tenants.get(id);
   }
 
   async getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined> {
-    const [tenant] = await db.select().from(tenants).where(eq(tenants.subdomain, subdomain));
-    return tenant;
+    return Array.from(this.tenants.values()).find(
+      (tenant) => tenant.subdomain === subdomain,
+    );
   }
 
   async getAllTenants(): Promise<Tenant[]> {
-    return await db.select().from(tenants);
+    return Array.from(this.tenants.values());
   }
 
-  async createTenant(tenant: InsertTenant): Promise<Tenant> {
-    const [newTenant] = await db.insert(tenants).values({
-      name: tenant.name,
-      subdomain: tenant.subdomain,
-      active: tenant.active ?? true,
-      config: tenant.config || {
+  async createTenant(insertTenant: InsertTenant): Promise<Tenant> {
+    const id = this.currentTenantId++;
+    const tenant: Tenant = {
+      ...insertTenant,
+      id,
+      active: insertTenant.active ?? true,
+      config: {
         theme: "light",
         logo: null,
         contactEmail: null,
         address: null,
         phone: null,
+        ...insertTenant.config,
       },
-    }).returning();
-    return newTenant;
+    };
+    this.tenants.set(id, tenant);
+    return tenant;
   }
 
   async updateTenantConfig(id: number, config: TenantConfig): Promise<Tenant> {
-    const [updatedTenant] = await db
-      .update(tenants)
-      .set({ config })
-      .where(eq(tenants.id, id))
-      .returning();
-
-    if (!updatedTenant) {
+    const tenant = await this.getTenant(id);
+    if (!tenant) {
       throw new Error("Tenant not found");
     }
 
+    const updatedTenant = {
+      ...tenant,
+      config,
+    };
+    this.tenants.set(id, updatedTenant);
     return updatedTenant;
   }
 
   async getCategoriesByTenantId(tenantId: number): Promise<Category[]> {
-    return await db
-      .select()
-      .from(categories)
-      .where(eq(categories.tenantId, tenantId));
+    return Array.from(this.categories.values()).filter(
+      (category) => category.tenantId === tenantId
+    );
   }
 
-  async createCategory(category: InsertCategory & { tenantId: number }): Promise<Category> {
-    const [newCategory] = await db.insert(categories).values({
-      name: category.name,
-      description: category.description ?? null,
-      image: category.image ?? null,
-      order: category.order ?? 0,
-      active: category.active ?? true,
-      tenantId: category.tenantId,
-    }).returning();
-    return newCategory;
+  async createCategory(insertCategory: InsertCategory & { tenantId: number }): Promise<Category> {
+    const id = this.currentCategoryId++;
+    const category: Category = {
+      ...insertCategory,
+      id,
+      active: insertCategory.active ?? true,
+      order: insertCategory.order ?? 0,
+      description: insertCategory.description ?? null,
+      image: insertCategory.image ?? null,
+    };
+    this.categories.set(id, category);
+    return category;
   }
 
   async getProductsByCategoryId(categoryId: number, tenantId: number): Promise<Product[]> {
-    return await db
-      .select()
-      .from(products)
-      .where(and(
-        eq(products.categoryId, categoryId),
-        eq(products.tenantId, tenantId)
-      ));
+    return Array.from(this.products.values()).filter(
+      (product) => product.categoryId === categoryId && product.tenantId === tenantId
+    );
   }
 
-  async createProduct(product: InsertProduct & { categoryId: number, tenantId: number }): Promise<Product> {
-    const [newProduct] = await db.insert(products).values({
-      name: product.name,
-      description: product.description ?? null,
-      image: product.image ?? null,
-      basePrice: product.basePrice.toString(),
-      categoryId: product.categoryId,
-      active: product.active ?? true,
-      order: product.order ?? 0,
-      tenantId: product.tenantId,
-    }).returning();
-    return newProduct;
+  async createProduct(insertProduct: InsertProduct & { categoryId: number, tenantId: number }): Promise<Product> {
+    const id = this.currentProductId++;
+    const product: Product = {
+      ...insertProduct,
+      id,
+      active: insertProduct.active ?? true,
+      order: insertProduct.order ?? 0,
+      description: insertProduct.description ?? null,
+      image: insertProduct.image ?? null,
+    };
+    this.products.set(id, product);
+    return product;
   }
 
   async getProductVariants(productId: number): Promise<ProductVariant[]> {
-    return await db
-      .select()
-      .from(productVariants)
-      .where(eq(productVariants.productId, productId));
+    return Array.from(this.variants.values()).filter(
+      (variant) => variant.productId === productId
+    );
   }
 
-  async createProductVariant(variant: InsertProductVariant & { productId: number, tenantId: number }): Promise<ProductVariant> {
-    const [newVariant] = await db.insert(productVariants).values({
-      name: variant.name,
-      price: variant.price.toString(),
-      productId: variant.productId,
-      order: variant.order ?? 0,
-      active: variant.active ?? true,
-      tenantId: variant.tenantId,
-    }).returning();
-    return newVariant;
+  async createProductVariant(insertVariant: InsertProductVariant & { productId: number, tenantId: number }): Promise<ProductVariant> {
+    const id = this.currentVariantId++;
+    const variant: ProductVariant = {
+      ...insertVariant,
+      id,
+      active: insertVariant.active ?? true,
+      order: insertVariant.order ?? 0,
+    };
+    this.variants.set(id, variant);
+    return variant;
   }
 
   async getAllProductsByTenantId(tenantId: number): Promise<Product[]> {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.tenantId, tenantId));
+    return Array.from(this.products.values()).filter(
+      (product) => product.tenantId === tenantId
+    );
   }
 
-  async updateProduct(productId: number, tenantId: number, updateData: UpdateProduct): Promise<Product> {
-    // Si basePrice está presente, asegurarse de que sea un string
-    if (updateData.basePrice !== undefined) {
-      updateData.basePrice = updateData.basePrice.toString();
-    }
+  async updateProduct(productId: number, tenantId: number, updateProduct: UpdateProduct): Promise<Product> {
+    const existingProduct = Array.from(this.products.values()).find(
+      (p) => p.id === productId && p.tenantId === tenantId
+    );
 
-    const [updatedProduct] = await db
-      .update(products)
-      .set(updateData)
-      .where(and(
-        eq(products.id, productId),
-        eq(products.tenantId, tenantId)
-      ))
-      .returning();
-
-    if (!updatedProduct) {
+    if (!existingProduct) {
       throw new Error("Product not found");
     }
 
+    const updatedProduct: Product = {
+      ...existingProduct,
+      ...updateProduct,
+    };
+
+    this.products.set(productId, updatedProduct);
     return updatedProduct;
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();
