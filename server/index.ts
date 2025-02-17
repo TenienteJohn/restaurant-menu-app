@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import cors from "cors";
 
 // Extender el tipo Request para incluir tenantId y tenantConfig
 declare global {
@@ -14,6 +15,17 @@ declare global {
 }
 
 const app = express();
+
+// Configurar CORS para permitir solicitudes desde el frontend
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL || 'https://tu-app.vercel.app']  // Cambia esto por tu dominio en Vercel
+  : ['http://localhost:3000', 'http://localhost:5000'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
+
 // Aumentar el límite del body-parser para permitir imágenes más grandes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
