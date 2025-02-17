@@ -22,6 +22,7 @@ export interface IStorage {
   sessionStore: session.Store;
   getProductVariants(productId: number): Promise<ProductVariant[]>;
   createProductVariant(variant: InsertProductVariant & { productId: number, tenantId: number }): Promise<ProductVariant>;
+  getAllProductsByTenantId(tenantId: number): Promise<Product[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -179,6 +180,12 @@ export class MemStorage implements IStorage {
     };
     this.variants.set(id, variant);
     return variant;
+  }
+
+  async getAllProductsByTenantId(tenantId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(
+      (product) => product.tenantId === tenantId
+    );
   }
 }
 

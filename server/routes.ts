@@ -166,6 +166,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(products);
   });
 
+  //New endpoint added here
+  app.get("/api/tenants/:tenantId/products", async (req, res) => {
+    const tenantId = parseInt(req.params.tenantId);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    try {
+      const products = await storage.getAllProductsByTenantId(tenantId);
+      res.json(products);
+    } catch (error) {
+      console.error("Error getting products:", error);
+      res.status(500).json({ error: "Failed to get products" });
+    }
+  });
+
+
   // Product variants management (tenant members only)
   app.post("/api/tenants/:tenantId/products/:productId/variants", async (req, res) => {
     const tenantId = parseInt(req.params.tenantId);

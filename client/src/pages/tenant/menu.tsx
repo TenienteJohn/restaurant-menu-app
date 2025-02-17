@@ -12,12 +12,18 @@ import ProductCard from "@/components/menu/product-card";
 export default function MenuPage() {
   const { user } = useAuth();
 
-  const { data: categories, isLoading: isLoadingCategories } = useQuery<Category[]>({
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<Category[]>({
     queryKey: [`/api/tenants/${user?.tenantId}/categories`],
     enabled: !!user?.tenantId,
   });
 
-  if (isLoadingCategories) {
+  // Obtener todos los productos de todas las categorías
+  const { data: allProducts = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
+    queryKey: [`/api/tenants/${user?.tenantId}/products`],
+    enabled: !!user?.tenantId && categories.length > 0,
+  });
+
+  if (isLoadingCategories || isLoadingProducts) {
     return <div>Cargando menú...</div>;
   }
 
@@ -38,10 +44,9 @@ export default function MenuPage() {
 
       <Accordion type="single" collapsible className="w-full">
         {categories.map((category) => {
-          const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
-            queryKey: [`/api/tenants/${user?.tenantId}/categories/${category.id}/products`],
-            enabled: !!user?.tenantId,
-          });
+          const categoryProducts = allProducts.filter(
+            (product) => product.categoryId === category.id
+          );
 
           return (
             <AccordionItem key={category.id} value={`category-${category.id}`}>
@@ -50,12 +55,10 @@ export default function MenuPage() {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 pt-4">
-                  {isLoadingProducts ? (
-                    <div>Cargando productos...</div>
-                  ) : !products.length ? (
+                  {!categoryProducts.length ? (
                     <div>No hay productos en esta categoría</div>
                   ) : (
-                    products.map((product) => (
+                    categoryProducts.map((product) => (
                       <ProductCard 
                         key={product.id} 
                         product={product}
