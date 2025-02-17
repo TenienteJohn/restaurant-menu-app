@@ -1,16 +1,13 @@
 import { Plus } from "lucide-react";
-import { Product, ProductVariant } from "@shared/schema";
-import { Button } from "@/components/ui/button";
+import { Product } from "@shared/schema";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
-  variants?: ProductVariant[];
   onAddToCart?: () => void;
 }
 
-export default function ProductCard({ product, variants, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
   return (
     <Card className="overflow-hidden group relative">
       {/* Botón de agregar al carrito */}
@@ -23,7 +20,7 @@ export default function ProductCard({ product, variants, onAddToCart }: ProductC
 
       {/* Contenedor de imagen */}
       <div className="aspect-video relative overflow-hidden">
-        {product.image ? (
+        {product?.image ? (
           <img
             src={product.image}
             alt={product.name}
@@ -39,26 +36,17 @@ export default function ProductCard({ product, variants, onAddToCart }: ProductC
       {/* Contenido */}
       <div className="p-4">
         <h3 className="font-medium text-lg truncate">{product.name}</h3>
-        <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
-          {product.description}
-        </p>
+        {product.description && (
+          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
+            {product.description}
+          </p>
+        )}
 
-        {/* Precios */}
-        <div className="space-y-1">
-          {variants?.length ? (
-            variants.map((variant) => (
-              <div key={variant.id} className="flex justify-between items-center text-sm">
-                <span>{variant.name}:</span>
-                <span className="font-medium">$ {variant.price.toLocaleString()}</span>
-              </div>
-            ))
-          ) : (
-            <div className="flex justify-between items-center">
-              <span className="font-medium">
-                $ {product.basePrice.toLocaleString()}
-              </span>
-            </div>
-          )}
+        {/* Precio */}
+        <div className="flex justify-between items-center">
+          <span className="font-medium">
+            $ {parseFloat(product.basePrice).toLocaleString()}
+          </span>
         </div>
       </div>
     </Card>
