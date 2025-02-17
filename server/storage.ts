@@ -1,4 +1,4 @@
-import { users, tenants, categories, products, variants, ingredients, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig, type Category, type InsertCategory, type Product, type InsertProduct } from "@shared/schema";
+import { users, tenants, categories, products, productVariants, type User, type InsertUser, type Tenant, type InsertTenant, type TenantConfig, type Category, type InsertCategory, type Product, type InsertProduct, type ProductVariant, type InsertProductVariant } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -20,6 +20,8 @@ export interface IStorage {
   getProductsByCategoryId(categoryId: number, tenantId: number): Promise<Product[]>;
   createProduct(product: InsertProduct & { categoryId: number, tenantId: number }): Promise<Product>;
   sessionStore: session.Store;
+  getProductVariants(productId: number): Promise<ProductVariant[]>;
+  createProductVariant(variant: InsertProductVariant & { productId: number, tenantId: number }): Promise<ProductVariant>;
 }
 
 export class MemStorage implements IStorage {
@@ -27,10 +29,12 @@ export class MemStorage implements IStorage {
   private tenants: Map<number, Tenant>;
   private categories: Map<number, Category>;
   private products: Map<number, Product>;
+  private variants: Map<number, ProductVariant>;
   currentUserId: number;
   currentTenantId: number;
   currentCategoryId: number;
   currentProductId: number;
+  currentVariantId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -38,10 +42,12 @@ export class MemStorage implements IStorage {
     this.tenants = new Map();
     this.categories = new Map();
     this.products = new Map();
+    this.variants = new Map();
     this.currentUserId = 1;
     this.currentTenantId = 1;
     this.currentCategoryId = 1;
     this.currentProductId = 1;
+    this.currentVariantId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -155,6 +161,24 @@ export class MemStorage implements IStorage {
     };
     this.products.set(id, product);
     return product;
+  }
+
+  async getProductVariants(productId: number): Promise<ProductVariant[]> {
+    return Array.from(this.variants.values()).filter(
+      (variant) => variant.productId === productId
+    );
+  }
+
+  async createProductVariant(insertVariant: InsertProductVariant & { productId: number, tenantId: number }): Promise<ProductVariant> {
+    const id = this.currentVariantId++;
+    const variant: ProductVariant = {
+      ...insertVariant,
+      id,
+      active: insertVariant.active ?? true,
+      order: insertVariant.order ?? 0,
+    };
+    this.variants.set(id, variant);
+    return variant;
   }
 }
 

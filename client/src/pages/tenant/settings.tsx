@@ -22,7 +22,8 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function TenantSettingsPage() {
   const { user } = useAuth();
@@ -65,15 +66,15 @@ export default function TenantSettingsPage() {
   const updateConfigMutation = useMutation({
     mutationFn: async (data: { config: Tenant["config"] }) => {
       const res = await apiRequest(
-        "PATCH", 
+        "PATCH",
         `/api/tenants/${user?.tenantId}/settings`,
         data
       );
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/tenants/${user?.tenantId}/settings`] 
+      queryClient.invalidateQueries({
+        queryKey: [`/api/tenants/${user?.tenantId}/settings`]
       });
       toast({
         title: "Configuración actualizada",
@@ -91,7 +92,6 @@ export default function TenantSettingsPage() {
 
   const createCategoryMutation = useMutation({
     mutationFn: async (data: Category) => {
-      console.log("Enviando datos de categoría:", data);
       const res = await apiRequest(
         "POST",
         `/api/tenants/${user?.tenantId}/categories`,
@@ -110,7 +110,6 @@ export default function TenantSettingsPage() {
       categoryForm.reset();
     },
     onError: (error: Error) => {
-      console.error("Error al crear categoría:", error);
       toast({
         title: "Error al crear categoría",
         description: error.message,
@@ -120,7 +119,6 @@ export default function TenantSettingsPage() {
   });
 
   const handleCreateCategory = (formData: any) => {
-    console.log("Form data:", formData);
     if (!user?.tenantId) {
       toast({
         title: "Error",
@@ -139,9 +137,48 @@ export default function TenantSettingsPage() {
       image: formData.image || null,
     };
 
-    console.log("Datos de categoría a enviar:", categoryData);
     createCategoryMutation.mutate(categoryData);
   };
+
+  const productForm = useForm({
+    resolver: zodResolver(insertProductSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      image: null,
+      basePrice: "0",
+      order: 0,
+      active: true,
+    },
+  });
+
+  const createProductMutation = useMutation({
+    mutationFn: async ({ categoryId, data }: { categoryId: number; data: Product }) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/tenants/${user?.tenantId}/categories/${categoryId}/products`,
+        data
+      );
+      return res.json();
+    },
+    onSuccess: (_, { categoryId }) => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/tenants/${user?.tenantId}/categories/${categoryId}/products`],
+      });
+      toast({
+        title: "Producto creado",
+        description: "El producto se ha creado correctamente",
+      });
+      productForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error al crear producto",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   if (isLoadingTenant || isLoadingCategories) {
     return <div>Cargando...</div>;
@@ -185,8 +222,8 @@ export default function TenantSettingsPage() {
                 />
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={updateConfigMutation.isPending}
               >
                 {updateConfigMutation.isPending ? (
@@ -223,9 +260,9 @@ export default function TenantSettingsPage() {
                 >
                   <div>
                     <Label htmlFor="name">Nombre</Label>
-                    <Input 
-                      id="name" 
-                      {...categoryForm.register("name")} 
+                    <Input
+                      id="name"
+                      {...categoryForm.register("name")}
                     />
                     {categoryForm.formState.errors.name && (
                       <p className="text-sm text-red-500">
@@ -235,9 +272,9 @@ export default function TenantSettingsPage() {
                   </div>
                   <div>
                     <Label htmlFor="description">Descripción</Label>
-                    <Input 
-                      id="description" 
-                      {...categoryForm.register("description")} 
+                    <Input
+                      id="description"
+                      {...categoryForm.register("description")}
                     />
                     {categoryForm.formState.errors.description && (
                       <p className="text-sm text-red-500">
@@ -270,10 +307,104 @@ export default function TenantSettingsPage() {
                     {category.name}
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="pt-4">
-                      <p className="text-muted-foreground">
-                        {category.description}
-                      </p>
+                    <div className="pt-4 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium">Productos</h3>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button>
+                              <Plus className="w-4 h-4 mr-2" />
+                              Nuevo Producto
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Agregar Producto a {category.name}</DialogTitle>
+                            </DialogHeader>
+                            <form
+                              onSubmit={productForm.handleSubmit((data) =>
+                                createProductMutation.mutate({
+                                  categoryId: category.id,
+                                  data: {
+                                    ...data,
+                                    basePrice: parseFloat(data.basePrice),
+                                  } as Product
+                                })
+                              )}
+                              className="space-y-4"
+                            >
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="productName">Nombre del Producto</Label>
+                                  <Input
+                                    id="productName"
+                                    {...productForm.register("name")}
+                                    placeholder="Ej: Hamburguesa Clásica"
+                                  />
+                                  {productForm.formState.errors.name && (
+                                    <p className="text-sm text-red-500">
+                                      {productForm.formState.errors.name.message}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="basePrice">Precio Base</Label>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-2.5">$</span>
+                                    <Input
+                                      id="basePrice"
+                                      type="number"
+                                      step="0.01"
+                                      className="pl-7"
+                                      {...productForm.register("basePrice")}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="productDescription">Descripción</Label>
+                                <Textarea
+                                  id="productDescription"
+                                  {...productForm.register("description")}
+                                  placeholder="Breve descripción del producto..."
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label>Imagen del Producto</Label>
+                                <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    Arrastra una imagen aquí o haz clic para seleccionar
+                                  </p>
+                                </div>
+                              </div>
+
+                              <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={createProductMutation.isPending}
+                              >
+                                {createProductMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Creando Producto...
+                                  </>
+                                ) : (
+                                  "Crear Producto"
+                                )}
+                              </Button>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+
+                      {/* Lista de productos aquí */}
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {/* ProductCard components will go here */}
+                      </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>

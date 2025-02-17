@@ -154,6 +154,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(products);
   });
 
+  // Product variants management (tenant members only)
+  app.post("/api/tenants/:tenantId/products/:productId/variants", async (req, res) => {
+    const tenantId = parseInt(req.params.tenantId);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const productId = parseInt(req.params.productId);
+    const parsed = insertProductVariantSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json(parsed.error);
+    }
+
+    const variant = await storage.createProductVariant({
+      ...parsed.data,
+      productId,
+      tenantId,
+    });
+    res.status(201).json(variant);
+  });
+
+  app.get("/api/tenants/:tenantId/products/:productId/variants", async (req, res) => {
+    const tenantId = parseInt(req.params.tenantId);
+    if (!isTenantMember(req, tenantId)) {
+      return res.status(403).send("Tenant access required");
+    }
+
+    const productId = parseInt(req.params.productId);
+    const variants = await storage.getProductVariants(productId);
+    res.json(variants);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

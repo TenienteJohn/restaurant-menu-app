@@ -88,6 +88,16 @@ export const variants = pgTable("variants", {
   tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
+export const productVariants = pgTable("product_variants", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  name: text("name").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  order: integer("display_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+});
+
 export const ingredients = pgTable("ingredients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -141,6 +151,17 @@ export const insertIngredientSchema = createInsertSchema(ingredients).omit({
   id: true,
 });
 
+export const insertProductVariantSchema = createInsertSchema(productVariants).omit({
+  id: true,
+  tenantId: true,
+  productId: true,
+}).extend({
+  name: z.string().min(1, "El nombre es requerido"),
+  price: z.number().min(0, "El precio debe ser mayor o igual a 0"),
+  order: z.number().default(0),
+  active: z.boolean().default(true),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
@@ -154,3 +175,5 @@ export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertVariant = z.infer<typeof insertVariantSchema>;
 export type InsertIngredient = z.infer<typeof insertIngredientSchema>;
+export type ProductVariant = typeof productVariants.$inferSelect;
+export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
